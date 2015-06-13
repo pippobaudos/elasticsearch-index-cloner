@@ -18,7 +18,9 @@ That's the list of all the options:
 
 Usage
 ------
+```
 java -jar IndexCloner-0.0.1-SNAPSHOT-jar-with-dependencies.jar -h
+```
 usage: Main
 *  -srcHost         source: host:port (e.g. localhost:9200)
 *  -srcIndex        source: index name

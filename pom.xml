@@ -1,0 +1,81 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.roncia.elasticsearch</groupId>
+	<artifactId>IndexCloner</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>Elasticsearch Index Cloner</name>
+    <description>Simple utilities to clone elasticsearch index throught the REST endpoint, supporting user/password authentication</description>
+    <properties>
+        <junit.version>4.10</junit.version>
+        <java.version>1.7</java.version>
+        <jar.version>2.1</jar.version>
+        <compiler.version>3.1</compiler.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+	<repositories>
+		<repository>
+			<id>sonatype</id>
+			<name>Sonatype Groups</name>
+			<url>https://oss.sonatype.org/content/groups/public/</url>
+		</repository>
+	</repositories>
+
+    <developers>
+        <developer>
+            <id>pippobaudos</id>
+            <name>Niccolo Becchi</name>
+            <email>niccolo.becchi@gmail.com</email>
+        </developer>
+    </developers>
+
+	<dependencies>
+
+		<dependency>
+			<groupId>io.searchbox</groupId>
+			<artifactId>jest</artifactId>
+			<version>0.1.7-SNAPSHOT</version>
+		</dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>commons-cli</groupId>
+            <artifactId>commons-cli</artifactId>
+            <version>1.3</version>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                </configuration>
+                <version>${compiler.version}</version>
+            </plugin>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>com.roncia.elasticsearch.tools.IndexClone</mainClass>
+                        </manifest>
+                    </archive>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

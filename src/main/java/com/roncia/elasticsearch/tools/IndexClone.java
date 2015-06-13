@@ -26,7 +26,8 @@ import java.util.Map.Entry;
 
 public class IndexClone {
 
-    /**
+
+   /**
    * @param args
    * @throws IOException 
    */
@@ -159,7 +160,12 @@ public class IndexClone {
     private static void deleteIfExistAndLoadSettingsMappings(JestClient src, JestClient dst, String indexSrc, String indexDst) throws IOException {
         GetSettings getSettings = new GetSettings.Builder().addIndex(indexSrc).prefixQuery(indexSrc).build();
         JestResult result = src.execute(getSettings);
-        String currentSettings = result.getJsonObject().get(indexSrc).getAsJsonObject().get("settings").getAsJsonObject().get("index").getAsJsonObject().toString();
+        JsonElement srcLoad = result.getJsonObject().get(indexSrc);
+        if (srcLoad == null) {
+            throw new RuntimeException("The source index " + indexSrc + " doesn't exist. Impossible to continue!") ;
+        }
+
+        String currentSettings = srcLoad.getAsJsonObject().get("settings").getAsJsonObject().get("index").getAsJsonObject().toString();
 
         DeleteIndex indicesExists = new DeleteIndex.Builder(indexDst).build();
         JestResult delete = dst.execute(indicesExists);

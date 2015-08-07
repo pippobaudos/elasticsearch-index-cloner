@@ -28,10 +28,9 @@ public class IndexClone {
 
 
    /**
-   * @param args
-   * @throws IOException 
+   * @throws IOException
    */
-  public static void main(String[] args) throws IOException, ParseException, InterruptedException {
+  public static void main(String args[]) throws IOException, ParseException, InterruptedException {
       CommandLine cmd = readCommandLine(args);
 
       String srcHost = cmd.getOptionValue("srcHost");
@@ -100,7 +99,7 @@ public class IndexClone {
         if (user != null || pwd != null) {
             builder = builder.defaultCredentials(user, pwd);
         }
-        factory.setHttpClientConfig(builder.build());
+        factory.setHttpClientConfig(builder.connTimeout(10000).readTimeout(10000).build());
         return factory.getObject();
     }
 
@@ -126,8 +125,10 @@ public class IndexClone {
           else {
               SearchScroll scroll = new SearchScroll.Builder(scrollId, "5m")
                       .setParameter(Parameters.SIZE, sizePage).build();
+
               ret = src.execute(scroll);
           }
+
 
           JsonArray hits = ret.getJsonObject().get("hits").getAsJsonObject().get("hits").getAsJsonArray();
           nHits = hits.size();
@@ -139,9 +140,17 @@ public class IndexClone {
           Builder bulk = bulkRequestBuilder(indexDst, hits);
           JestResult response = dst.execute(bulk.build());
           System.out.println(response.getJsonString());
+
+            if (isErrorOnBulkResponse(response)) {
+                throw new RuntimeException("Unexpected error on copying the object.. Check the last message");
+            }
         }
 
         System.out.println("Copied succesfully " + totHits + " documents");
+    }
+
+    private static boolean isErrorOnBulkResponse(JestResult response) {
+        return !response.isSucceeded() || response.getJsonObject().get("errors").getAsBoolean();
     }
 
     private static Builder bulkRequestBuilder(String indexDst, JsonArray hits) {
@@ -170,8 +179,13 @@ public class IndexClone {
         DeleteIndex indicesExists = new DeleteIndex.Builder(indexDst).build();
         JestResult delete = dst.execute(indicesExists);
         System.out.println("delete: " + delete.getJsonString());
+        
         JestResult create = dst.execute(new CreateIndex.Builder(indexDst).settings(currentSettings).build());
         System.out.println("create: " + create.getJsonString());
+        if (!create.getJsonObject().get("acknowledged").getAsBoolean()) {
+             throw new RuntimeException("Index not created properly!");
+        }
+
 
         GetMapping getMapping = new GetMapping.Builder().addIndex(indexSrc).build();
         JsonElement oldMapping = src.execute(getMapping).getJsonObject().get(indexSrc).getAsJsonObject().get("mappings");
@@ -181,7 +195,12 @@ public class IndexClone {
             String type = e.getKey();
             String typeMapping = oldMapping.getAsJsonObject().get(type).getAsJsonObject().toString();
             PutMapping putMapping = new PutMapping.Builder(indexDst, type, typeMapping).build();
-            dst.execute(putMapping);
+
+            JestResult dstResult = dst.execute(putMapping);
+            if (!dstResult.getJsonObject().get("acknowledged").getAsBoolean()) {
+                throw new RuntimeException("Mapping not loaded properly!");
+            }
+
           }
         }
         System.out.println("oldMapping: " + oldMapping.toString());

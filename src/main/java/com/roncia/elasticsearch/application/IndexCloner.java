@@ -120,7 +120,7 @@ public class IndexCloner {
                 final int numberDstIndexReplicas= Integer.valueOf(dstIndexReplicas);
                 index.addProperty("number_of_replicas", String.valueOf(numberDstIndexReplicas));
             } catch (NumberFormatException e) {
-                throw new RuntimeException("Invalid Number Replicas Number! " + e.getMessage());
+                throw new RuntimeException("Invalid Number for Replicas argument! " + e.getMessage());
             }
         }
     }

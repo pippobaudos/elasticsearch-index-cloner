@@ -28,6 +28,11 @@
             <name>Niccolo Becchi</name>
             <email>niccolo.becchi@gmail.com</email>
         </developer>
+        <developer>
+            <id>MunchKin</id>
+            <name>Moses Mansaray</name>
+            <email>m_mans@hotmail.com</email>
+        </developer>
     </developers>
 
 	<dependencies>
@@ -35,7 +40,7 @@
 		<dependency>
 			<groupId>io.searchbox</groupId>
 			<artifactId>jest</artifactId>
-			<version>0.1.7-SNAPSHOT</version>
+			<version>0.1.6</version>
 		</dependency>
 
         <dependency>
@@ -68,7 +73,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>com.roncia.elasticsearch.tools.IndexClone</mainClass>
+                            <mainClass>com.roncia.elasticsearch.application.IndexCloner</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>

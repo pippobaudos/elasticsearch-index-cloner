@@ -1,8 +1,15 @@
-*.class
+.git
+.git.OLD
+.git.NEW
+.project
 
+
+## Private files
+*/jobs
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
 .idea
+*.iml
 .settings
 .classpath
 data

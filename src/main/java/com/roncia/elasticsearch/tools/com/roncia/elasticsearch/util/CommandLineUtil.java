@@ -8,7 +8,7 @@ import java.util.logging.Logger;
 
 /**
  *
- * CommandLine static helper functions to manipulate command line arguments
+ * CommandLine static helper functions to manipulate command line arguments.
  *
  * Created on 28/08/15.
  * @author moses.mansaray

@@ -1,5 +1,3 @@
-package com.roncia.elasticsearch;
-
 import com.roncia.elasticsearch.application.IndexCloner;
 import com.roncia.elasticsearch.index.IndexRef;
 import com.roncia.elasticsearch.tools.com.roncia.elasticsearch.util.CommandLineUtil;
@@ -20,8 +18,8 @@ public class CloneIndexExample {
         String srcIndexName = "test_v6";
         String dstIndexName = "test_v6";
 
-        IndexRef src = new IndexRef("stg-server", "username", "password", srcIndexName);
-        IndexRef dstQa   = new IndexRef("dev-server", "username", "password", dstIndexName);
+        IndexRef src = new IndexRef("localhost:9200", "username", "password", srcIndexName);
+        IndexRef dstQa   = new IndexRef("localhost:9200", "username", "password", dstIndexName);
 
         final String[] cloneArguments = CommandLineUtil.buildCloneArguments(src, dstQa, "0");
         IndexCloner.main(cloneArguments);

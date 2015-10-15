@@ -22,15 +22,17 @@ Usage
 java -jar IndexCloner-0.0.1-SNAPSHOT-jar-with-dependencies.jar -h
 ```
 usage: Main
-*  -srcHost         source: host:port (e.g. localhost:9200)
-*  -srcIndex        source: index name
-*  -srcUser         source: user authentication
-*  -srcPwd          source: password authentication
-*  -dstHost         destination: host:port (e.g. localhost:9200)
-*  -dstIndex        destination: index name
-*  -dstUser         destination: user authentication
-*  -dstPwd          destination: password authentication
-*  -keepDstIndex    delete destination index if already existing
+*  -srcHost          source: host:port (e.g. localhost:9200)
+*  -srcIndex         source: index name
+*  -srcUser          source: user authentication
+*  -srcPwd           source: password authentication
+*  -dstHost          destination: host:port (e.g. localhost:9200)
+*  -dstIndex         destination: index name
+*  -dstIndexReplicas destination: number of Replicas
+*  -dstIndexShards   destination: number of Shards
+*  -dstUser          destination: user authentication
+*  -dstPwd           destination: password authentication
+*  -keepDstIndex     delete destination index if already existing
 
 
 Example of usage:
@@ -38,5 +40,5 @@ Example of usage:
 ```
 java -jar IndexCloner-0.0.1-SNAPSHOT-jar-with-dependencies.jar \
  -srcHost localhost:9200 -srcIndex movies -srcUser user1 -srcPwd password1 \
- -dstHost SEARCH-DEV -dstIndex movies_copy -dstUser user2 -dstPwd password2 
+ -dstHost SEARCH-DEV -dstIndex movies_copy -dstIndexReplicas 2 -dstIndexShards 5 -dstUser user2 -dstPwd password2 
 ```

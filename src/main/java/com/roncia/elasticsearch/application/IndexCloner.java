@@ -51,6 +51,7 @@ public class IndexCloner {
       String dstHost = cmd.getOptionValue("dstHost");
       String dstIndex = cmd.getOptionValue("dstIndex");
       String dstIndexReplicas = cmd.getOptionValue("dstIndexReplicas");
+      String dstIndexShards = cmd.getOptionValue("dstIndexShards");
       String dstUser = cmd.getOptionValue("dstUser");
       String dstPwd = cmd.getOptionValue("dstPwd");
 
@@ -62,7 +63,7 @@ public class IndexCloner {
       if (!keepDstIndex) {
           System.out.println("xxxx coping settings");
           JsonElement srcLoad = getSourceIndexSettings(src, srcIndex);
-          modifyIndexReplicaConfigurations(dstIndexReplicas, srcLoad);
+          modifyIndexReplicaConfigurations(dstIndexReplicas, dstIndexShards, srcLoad);
           String currentSettings = srcLoad.getAsJsonObject().get("settings").getAsJsonObject().get("index").getAsJsonObject().toString();
           deleteDestinationIndex(dst, dstIndex);
           createDestinationIndexFromSourceSettings(dst, dstIndex, currentSettings);
@@ -83,14 +84,13 @@ public class IndexCloner {
         } while ("red".equals(clusterStatus));
     }
 
-
-
     private static JestClient getAuthenticatedClient(String host, String user, String pwd) {
         JestClientFactory factory = new JestClientFactory();
         HttpClientConfig.Builder builder = new HttpClientConfig.Builder(host);
         if (user != null && pwd != null) {
             builder = builder.defaultCredentials(user, pwd);
         }
+        //substantially high timeout to give the application a chance to response respond with adequate msg if any
         factory.setHttpClientConfig(builder.connTimeout(3 * 60 * 1000).readTimeout(3 * 60 * 1000).build());
         return factory.getObject();
     }
@@ -118,14 +118,23 @@ public class IndexCloner {
         return srcLoad;
     }
 
-    private static void modifyIndexReplicaConfigurations(String dstIndexReplicas, JsonElement srcLoad) {
+    private static void modifyIndexReplicaConfigurations(String dstIndexReplicas, String dstIndexShards, JsonElement srcLoad) {
         final JsonObject settings = srcLoad.getAsJsonObject().get("settings").getAsJsonObject();
         final JsonObject index = settings.get("index").getAsJsonObject();
 
-        if(dstIndexReplicas != null && dstIndexReplicas.length()>0){
+        if(dstIndexReplicas != null && dstIndexReplicas.trim().length()>0){
             try {
                 final int numberDstIndexReplicas= Integer.valueOf(dstIndexReplicas);
                 index.addProperty("number_of_replicas", String.valueOf(numberDstIndexReplicas));
+            } catch (NumberFormatException e) {
+                throw new RuntimeException("Invalid Number for Replicas argument! " + e.getMessage());
+            }
+        }
+
+        if(dstIndexShards != null && !dstIndexShards.isEmpty()){
+            try {
+                final int numberDstIndexShards= Integer.valueOf(dstIndexShards);
+                index.addProperty("number_of_shards", String.valueOf(numberDstIndexShards));
             } catch (NumberFormatException e) {
                 throw new RuntimeException("Invalid Number for Replicas argument! " + e.getMessage());
             }
@@ -161,7 +170,6 @@ public class IndexCloner {
             if (!dstResult.getJsonObject().get("acknowledged").getAsBoolean()) {
                 throw new RuntimeException("Mapping not loaded properly!");
             }
-
           }
         }
         System.out.println("oldMapping: " + oldMapping.toString());

@@ -18,25 +18,24 @@ public class CommandLineUtil {
     private final static Logger LOGGER = Logger.getLogger(CommandLineUtil.class.getName());
 
     /**
-     * @param src the index reference of source
-     * @param dst the index reference of destination
-     * @param dstIndexReplicas the number if replicas to set for the new cloned index
-     * @return  the string array of arguments
-     */
-
-    /**
      *
      * @param src the index reference of source
      * @param dst the index reference of destination
+     * @param dstIndexShards the number of Shards to set for the new cloned index
      * @param dstIndexReplicas the number if replicas to set for the new cloned index
      * @param keepDstIndex true to keep settings as is and false to delete and copying src settings over to destination
      * @return  the string array of arguments
      */
-    public static String[] buildCloneArguments(IndexRef src, IndexRef dst, String dstIndexReplicas, boolean keepDstIndex) {
-        return new String[]{
+    public static String[] buildCloneArguments(IndexRef src, IndexRef dst, String dstIndexReplicas,
+                String dstIndexShards, boolean keepDstIndex) {
+
+            return new String[]{
             "-srcHost", src.getHost(), "-srcUser", src.getUser(), "-srcPwd", src.getPwd(), "-srcIndex", src.getIndexName(),
             "-dstHost", dst.getHost(), "-dstUser", dst.getUser(), "-dstPwd", dst.getPwd(), "-dstIndex", dst.getIndexName(),
-            "-dstIndexReplicas", dstIndexReplicas, "-keepDstIndex", Boolean.toString(keepDstIndex),
+            "-dstIndexReplicas", dstIndexReplicas,
+            "-dstIndexShards", dstIndexShards,
+            "-keepDstIndex", Boolean.toString(keepDstIndex)
+
         };
     }
 
@@ -72,6 +71,7 @@ public class CommandLineUtil {
         options.addOption(Option.builder("dstUser").hasArg().desc("destination: user authentication").build());
         options.addOption(Option.builder("dstPwd").hasArg().desc("destination: password authentication").build());
         options.addOption(Option.builder("dstIndexReplicas").hasArg().desc("destination: index number of replicas").build());
+        options.addOption(Option.builder("dstIndexShards").hasArg().desc("destination: index number of shards").build());
         options.addOption(Option.builder("keepDstIndex").hasArg().desc("delete destination index if already existing").build());
         return options;
     }

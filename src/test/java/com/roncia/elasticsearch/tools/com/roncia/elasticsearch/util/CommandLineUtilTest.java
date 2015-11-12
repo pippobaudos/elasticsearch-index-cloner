@@ -23,11 +23,11 @@ public class CommandLineUtilTest {
   public void readCommandLineShouldReturnOptionsAsExpected() throws Exception {
     IndexRef srcIndex = new IndexRef("mySrcHost", "user1", "pwd1", "myIndex");
     IndexRef dstIndex = new IndexRef("myDstHost", "user2", "pwd2", "myIndexCopy");
-    String[] cloneArguments = buildCloneArguments(srcIndex, dstIndex, "7");
+    String[] cloneArguments = buildCloneArguments(srcIndex, dstIndex, "7", true);
     CommandLine commandLine = readCommandLine(cloneArguments);
     int optionsLength = commandLine.getOptions().length;
 
-    assertEquals("Options size is not as expected", 9, optionsLength);
+    assertEquals("Options size is not as expected", 10, optionsLength);
     assertEquals("Src Host not as expected", "mySrcHost", commandLine.getOptionValue("srcHost"));
     assertEquals("Src User not as expected", "user1", commandLine.getOptionValue("srcUser"));
     assertEquals("Src Pwd not as expected", "pwd1", commandLine.getOptionValue("srcPwd"));
@@ -45,7 +45,7 @@ public class CommandLineUtilTest {
     int optionsLength = createOptions().getOptions().size() - 1; // minus keepDstIndex which is not clone arg
     IndexRef srcIndex = new IndexRef("srcHost", "user", "pwd", "myIndex");
     IndexRef dstIndex = new IndexRef("dstHost", "user", "pwd", "myIndex");
-    String[] cloneArguments = buildCloneArguments(srcIndex, dstIndex, "0");
+    String[] cloneArguments = buildCloneArguments(srcIndex, dstIndex, "0", true);
 
     int cloneArgumentsLength = cloneArguments.length/2; // key values pairs so /2
     assertEquals("Clone Args does not Match Options", optionsLength, cloneArgumentsLength);

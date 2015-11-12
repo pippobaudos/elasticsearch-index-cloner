@@ -4,11 +4,13 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.roncia.elasticsearch.tools.com.roncia.elasticsearch.util.CommandLineUtil;
+import com.sun.jmx.snmp.Timestamp;
 import io.searchbox.client.JestClient;
 import io.searchbox.client.JestClientFactory;
 import io.searchbox.client.JestResult;
 import io.searchbox.client.config.HttpClientConfig;
 import io.searchbox.cluster.Health;
+import io.searchbox.core.Bulk;
 import io.searchbox.core.Bulk.Builder;
 import io.searchbox.core.Index;
 import io.searchbox.core.Search;
@@ -22,6 +24,8 @@ import io.searchbox.params.Parameters;
 import org.apache.commons.cli.*;
 
 import java.io.IOException;
+import java.net.SocketTimeoutException;
+import java.util.Date;
 import java.util.Map.Entry;
 
 
@@ -50,12 +54,13 @@ public class IndexCloner {
       String dstUser = cmd.getOptionValue("dstUser");
       String dstPwd = cmd.getOptionValue("dstPwd");
 
-      boolean keepDstIndex = cmd.hasOption("keepDstIndex");
+      boolean keepDstIndex = Boolean.getBoolean(cmd.getOptionValue("keepDstIndex"));
 
       JestClient src = getAuthenticatedClient("http://" + srcHost, srcUser, srcPwd);
       JestClient dst = getAuthenticatedClient("http://" + dstHost, dstUser, dstPwd);
 
       if (!keepDstIndex) {
+          System.out.println("xxxx coping settings");
           JsonElement srcLoad = getSourceIndexSettings(src, srcIndex);
           modifyIndexReplicaConfigurations(dstIndexReplicas, srcLoad);
           String currentSettings = srcLoad.getAsJsonObject().get("settings").getAsJsonObject().get("index").getAsJsonObject().toString();
@@ -64,7 +69,9 @@ public class IndexCloner {
           applySourceMappingToDestinationIndex(src, dst, srcIndex, dstIndex);
           waitWhilstDestinationIndexIsInRedState(dst);
       }
+      System.out.println("xxxx cloning data phase started");
       cloneData(src, dst, srcIndex, dstIndex);
+      System.out.println("xxxx cloning data phase finished");
   }
 
     private static void waitWhilstDestinationIndexIsInRedState(JestClient dst) throws IOException, InterruptedException {
@@ -84,7 +91,7 @@ public class IndexCloner {
         if (user != null && pwd != null) {
             builder = builder.defaultCredentials(user, pwd);
         }
-        factory.setHttpClientConfig(builder.connTimeout(10000).readTimeout(10000).build());
+        factory.setHttpClientConfig(builder.connTimeout(3 * 60 * 1000).readTimeout(3 * 60 * 1000).build());
         return factory.getObject();
     }
 
@@ -115,7 +122,7 @@ public class IndexCloner {
         final JsonObject settings = srcLoad.getAsJsonObject().get("settings").getAsJsonObject();
         final JsonObject index = settings.get("index").getAsJsonObject();
 
-        if(dstIndexReplicas != null){
+        if(dstIndexReplicas != null && dstIndexReplicas.length()>0){
             try {
                 final int numberDstIndexReplicas= Integer.valueOf(dstIndexReplicas);
                 index.addProperty("number_of_replicas", String.valueOf(numberDstIndexReplicas));
@@ -194,7 +201,18 @@ public class IndexCloner {
 
             totHits += nHits;
             Builder bulk = bulkRequestBuilder(indexDst, hits);
-            JestResult response = dst.execute(bulk.build());
+
+            JestResult response = null;
+            try {
+                Bulk build = bulk.build();
+//                java.util.Date date= new java.util.Date();
+                System.out.println(new Timestamp(System.currentTimeMillis()));
+                response = dst.execute(build);
+            } catch (SocketTimeoutException e) {
+                System.out.println(" ------ socket exp");
+                System.out.println(new Timestamp(System.currentTimeMillis()));
+                e.printStackTrace();
+            }
             System.out.println(response.getJsonString());
         }
 

@@ -27,7 +27,7 @@ public class CommandLineUtilTest {
     CommandLine commandLine = readCommandLine(cloneArguments);
     int optionsLength = commandLine.getOptions().length;
 
-    assertEquals("Options size is not as expected", 10, optionsLength);
+    assertEquals("Options size is not as expected", 11, optionsLength);
     assertEquals("Src Host not as expected", "mySrcHost", commandLine.getOptionValue("srcHost"));
     assertEquals("Src User not as expected", "user1", commandLine.getOptionValue("srcUser"));
     assertEquals("Src Pwd not as expected", "pwd1", commandLine.getOptionValue("srcPwd"));
@@ -43,7 +43,7 @@ public class CommandLineUtilTest {
 
   @Test
   public void buildCloneArgumentsShouldMatchNumberOfOptions() throws Exception {
-    int optionsLength = createOptions().getOptions().size() - 1; // minus keepDstIndex which is not clone arg
+    int optionsLength = createOptions().getOptions().size();
     IndexRef srcIndex = new IndexRef("srcHost", "user", "pwd", "myIndex");
     IndexRef dstIndex = new IndexRef("dstHost", "user", "pwd", "myIndex");
     String[] cloneArguments = buildCloneArguments(srcIndex, dstIndex, "0", "4", true);

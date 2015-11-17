@@ -25,62 +25,75 @@ import org.apache.commons.cli.*;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;
-import java.util.Date;
 import java.util.Map.Entry;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 public class IndexCloner {
+
+    private static final Logger LOGGER = Logger.getLogger(IndexCloner.class.getName());
 
     /**
      * Index Cloner application main function
      *
      * @param args command line arguments representing source and destination index properties
-     *
      * @throws IOException
      * @throws ParseException
      * @throws InterruptedException
      * @throws RuntimeException
      */
-  public static void main(String args[]) throws IOException, ParseException, InterruptedException, RuntimeException {
-      CommandLine cmd = CommandLineUtil.readCommandLine(args);
-      String srcHost = cmd.getOptionValue("srcHost");
-      String srcIndex = cmd.getOptionValue("srcIndex");
-      String srcUser = cmd.getOptionValue("srcUser");
-      String srcPwd = cmd.getOptionValue("srcPwd");
+    public static void main(String args[]) throws IOException, ParseException, InterruptedException, RuntimeException {
+        CommandLine cmd = getCommandLine(args);
+        String srcIndex = cmd.getOptionValue("srcIndex");
+        String dstIndex = cmd.getOptionValue("dstIndex");
+        JestClient src = getClient("srcHost", "srcUser", "srcPwd", cmd);
+        JestClient dst = getClient("dstHost", "dstUser", "dstPwd", cmd);
+        createDestinationIndexFromSource(srcIndex, dstIndex, src, dst, cmd);
+        cloneData(src, dst, srcIndex, dstIndex);
+    }
 
-      String dstHost = cmd.getOptionValue("dstHost");
-      String dstIndex = cmd.getOptionValue("dstIndex");
-      String dstIndexReplicas = cmd.getOptionValue("dstIndexReplicas");
-      String dstIndexShards = cmd.getOptionValue("dstIndexShards");
-      String dstUser = cmd.getOptionValue("dstUser");
-      String dstPwd = cmd.getOptionValue("dstPwd");
+    private static CommandLine getCommandLine(String[] args) throws ParseException {
+        return CommandLineUtil.readCommandLine(args);
+    }
 
-      boolean keepDstIndex = Boolean.getBoolean(cmd.getOptionValue("keepDstIndex"));
+    private static void createDestinationIndexFromSource(
+            String srcIndex, String dstIndex, JestClient src, JestClient dst, CommandLine cmd)
+            throws IOException, InterruptedException {
+        boolean keepDstIndex = Boolean.parseBoolean(cmd.getOptionValue("keepDstIndex"));
+        if (!keepDstIndex) {
+            copySettings(srcIndex, dstIndex, src, dst, cmd);
+        } else {
+            logInformation("Skip : Copying settings");
+        }
+    }
 
-      JestClient src = getAuthenticatedClient("http://" + srcHost, srcUser, srcPwd);
-      JestClient dst = getAuthenticatedClient("http://" + dstHost, dstUser, dstPwd);
+    private static void copySettings(String srcIndex, String dstIndex, JestClient src, JestClient dst, CommandLine cmd) throws IOException, InterruptedException {
+        logInformation("Copying settings");
+        JsonElement srcLoad = getSourceIndexSettings(src, srcIndex);
+        modifyIndexReplicaConfigurations(cmd, srcLoad);
+        deleteDestinationIndex(dst, dstIndex);
+        createDestinationIndexFromSourceSettings(dst, dstIndex, srcLoad);
+        applySourceMappingToDestinationIndex(src, dst, srcIndex, dstIndex);
+        waitWhilstDestinationIndexIsInRedState(dst);
+    }
 
-      if (!keepDstIndex) {
-          System.out.println("xxxx coping settings");
-          JsonElement srcLoad = getSourceIndexSettings(src, srcIndex);
-          modifyIndexReplicaConfigurations(dstIndexReplicas, dstIndexShards, srcLoad);
-          String currentSettings = srcLoad.getAsJsonObject().get("settings").getAsJsonObject().get("index").getAsJsonObject().toString();
-          deleteDestinationIndex(dst, dstIndex);
-          createDestinationIndexFromSourceSettings(dst, dstIndex, currentSettings);
-          applySourceMappingToDestinationIndex(src, dst, srcIndex, dstIndex);
-          waitWhilstDestinationIndexIsInRedState(dst);
-      }
-      System.out.println("xxxx cloning data phase started");
-      cloneData(src, dst, srcIndex, dstIndex);
-      System.out.println("xxxx cloning data phase finished");
-  }
+    private static String getCurrentSettings(JsonElement srcLoad) {
+        return srcLoad.getAsJsonObject().get("settings").getAsJsonObject().get("index").getAsJsonObject().toString();
+    }
 
-    private static void waitWhilstDestinationIndexIsInRedState(JestClient dst) throws IOException, InterruptedException {
+    private static JestClient getClient(String host, String user, String pwd, CommandLine cmd) {
+        return getAuthenticatedClient(
+                "http://" + cmd.getOptionValue(host), cmd.getOptionValue(user), cmd.getOptionValue(pwd));
+    }
+
+    private static void waitWhilstDestinationIndexIsInRedState(JestClient dst)
+            throws IOException, InterruptedException {
         String clusterStatus;
         do {
-          JestResult result = dst.execute(new Health.Builder().build());
+            JestResult result = dst.execute(new Health.Builder().build());
             clusterStatus = result.getJsonObject().get("status").getAsString();
-           Thread.sleep(500);
+            Thread.sleep(500);
         } while ("red".equals(clusterStatus));
     }
 
@@ -98,12 +111,12 @@ public class IndexCloner {
     private static Builder bulkRequestBuilder(String indexDst, JsonArray hits) {
         Builder bulk = new Builder().defaultIndex(indexDst);
         for (JsonElement hit : hits) {
-          JsonObject h = hit.getAsJsonObject();
-          String id = h.get("_id").getAsString();
-          String t = h.get("_type").getAsString();
-          String source = h.get("_source").getAsJsonObject().toString();
-          Index index = new Index.Builder(source).index(indexDst).type(t).id(id).build();
-          bulk.addAction(index);
+            JsonObject h = hit.getAsJsonObject();
+            String id = h.get("_id").getAsString();
+            String t = h.get("_type").getAsString();
+            String source = h.get("_source").getAsJsonObject().toString();
+            Index index = new Index.Builder(source).index(indexDst).type(t).id(id).build();
+            bulk.addAction(index);
         }
         return bulk;
     }
@@ -113,27 +126,29 @@ public class IndexCloner {
         JestResult result = src.execute(getSettings);
         JsonElement srcLoad = result.getJsonObject().get(indexSrc);
         if (srcLoad == null) {
-            throw new RuntimeException("The source index " + indexSrc + " doesn't exist. Impossible to continue!") ;
+            throw new RuntimeException("The source index " + indexSrc + " doesn't exist. Impossible to continue!");
         }
         return srcLoad;
     }
 
-    private static void modifyIndexReplicaConfigurations(String dstIndexReplicas, String dstIndexShards, JsonElement srcLoad) {
+    private static void modifyIndexReplicaConfigurations(CommandLine cmd, JsonElement srcLoad) {
         final JsonObject settings = srcLoad.getAsJsonObject().get("settings").getAsJsonObject();
         final JsonObject index = settings.get("index").getAsJsonObject();
 
-        if(dstIndexReplicas != null && dstIndexReplicas.trim().length()>0){
+        String dstIndexReplicas = cmd.getOptionValue("dstIndexReplicas");
+        if (dstIndexReplicas != null && dstIndexReplicas.trim().length() > 0) {
             try {
-                final int numberDstIndexReplicas= Integer.valueOf(dstIndexReplicas);
+                final int numberDstIndexReplicas = Integer.valueOf(dstIndexReplicas);
                 index.addProperty("number_of_replicas", String.valueOf(numberDstIndexReplicas));
             } catch (NumberFormatException e) {
                 throw new RuntimeException("Invalid Number for Replicas argument! " + e.getMessage());
             }
         }
 
-        if(dstIndexShards != null && !dstIndexShards.isEmpty()){
+        String dstIndexShards = cmd.getOptionValue("dstIndexShards");
+        if (dstIndexShards != null && !dstIndexShards.isEmpty()) {
             try {
-                final int numberDstIndexShards= Integer.valueOf(dstIndexShards);
+                final int numberDstIndexShards = Integer.valueOf(dstIndexShards);
                 index.addProperty("number_of_shards", String.valueOf(numberDstIndexShards));
             } catch (NumberFormatException e) {
                 throw new RuntimeException("Invalid Number for Replicas argument! " + e.getMessage());
@@ -144,38 +159,45 @@ public class IndexCloner {
     private static void deleteDestinationIndex(JestClient dst, String indexDst) throws IOException {
         DeleteIndex indicesExists = new DeleteIndex.Builder(indexDst).build();
         JestResult delete = dst.execute(indicesExists);
-        System.out.println("delete: " + delete.getJsonString());
+        logInformation("delete: " + delete.getJsonString());
     }
 
-    private static void createDestinationIndexFromSourceSettings(JestClient dst, String indexDst, String currentSettings) throws IOException {
-        JestResult create = dst.execute(new CreateIndex.Builder(indexDst).settings(currentSettings).build());
-        System.out.println("create: " + create.getJsonString());
-        if (!create.getJsonObject().get("acknowledged").getAsBoolean()) {
-             throw new RuntimeException("Index not created properly!");
-        }
+    private static void createDestinationIndexFromSourceSettings(
+            JestClient dst, String indexDst, JsonElement currentSettings)
+            throws IOException {
+        JestResult create = dst.execute(new CreateIndex.Builder(indexDst).settings(getCurrentSettings(currentSettings)).build());
+        logInformation("create: " + create.getJsonString());
+        confirmResponse(create, "Index not created properly!");
     }
 
-    private static void applySourceMappingToDestinationIndex(JestClient src, JestClient dst, String indexSrc, String indexDst)
+    private static void applySourceMappingToDestinationIndex(
+            JestClient src, JestClient dst, String indexSrc, String indexDst)
             throws RuntimeException, IOException {
         GetMapping getMapping = new GetMapping.Builder().addIndex(indexSrc).build();
         JsonElement oldMapping = src.execute(getMapping).getJsonObject().get(indexSrc).getAsJsonObject().get("mappings");
         if (oldMapping instanceof JsonObject) {
-          JsonObject m = (JsonObject)oldMapping;
-          for (Entry<String, JsonElement> e : m.entrySet()) {
-            String type = e.getKey();
-            String typeMapping = oldMapping.getAsJsonObject().get(type).getAsJsonObject().toString();
-            PutMapping putMapping = new PutMapping.Builder(indexDst, type, typeMapping).build();
+            JsonObject m = (JsonObject) oldMapping;
+            for (Entry<String, JsonElement> e : m.entrySet()) {
+                String type = e.getKey();
+                String typeMapping = oldMapping.getAsJsonObject().get(type).getAsJsonObject().toString();
+                PutMapping putMapping = new PutMapping.Builder(indexDst, type, typeMapping).build();
 
-            JestResult dstResult = dst.execute(putMapping);
-            if (!dstResult.getJsonObject().get("acknowledged").getAsBoolean()) {
-                throw new RuntimeException("Mapping not loaded properly!");
+                JestResult dstResult = dst.execute(putMapping);
+                confirmResponse(dstResult, "Mapping not loaded properly!");
             }
-          }
         }
-        System.out.println("oldMapping: " + oldMapping.toString());
+        logInformation("oldMapping: " + oldMapping.toString());
+    }
+
+    private static void confirmResponse(JestResult result, String message) {
+        if (!result.getJsonObject().get("acknowledged").getAsBoolean()) {
+            throw new RuntimeException(message);
+        }
     }
 
     private static void cloneData(JestClient src, JestClient dst, String indexSrc, String indexDst) throws IOException {
+        logInformation("cloning data phase started");
+
         int from = 0;
         int sizePage = 100;
         int nHits;
@@ -183,10 +205,10 @@ public class IndexCloner {
 
         String scrollId = null;
         JestResult ret;
-        while(true) {
+        while (true) {
 
             // Only on first page: Query
-            if (scrollId == null)  {
+            if (scrollId == null) {
                 String query = "{\"size\": " + sizePage + ", \"from\": " + from + "}";
                 Search search = new Search.Builder(query).addIndex(indexSrc).setParameter(Parameters.SIZE, sizePage)
                         .setParameter(Parameters.SCROLL, "5m").build();
@@ -213,17 +235,27 @@ public class IndexCloner {
             JestResult response = null;
             try {
                 Bulk build = bulk.build();
-//                java.util.Date date= new java.util.Date();
-                System.out.println(new Timestamp(System.currentTimeMillis()));
+                logInformation(new Timestamp(System.currentTimeMillis()).toString());
                 response = dst.execute(build);
             } catch (SocketTimeoutException e) {
-                System.out.println(" ------ socket exp");
-                System.out.println(new Timestamp(System.currentTimeMillis()));
+                logInformation(" ------ socket exp");
+                logInformation(new Timestamp(System.currentTimeMillis()).toString());
                 e.printStackTrace();
             }
-            System.out.println(response.getJsonString());
+            logResponse(response);
         }
-
-        System.out.println("Copied successfully " + totHits + " documents");
+        logInformation("Copied successfully " + totHits + " documents");
+        logInformation("cloning data phase finished");
     }
+
+    private static void logResponse(JestResult response) {
+        if (response != null) {
+            logInformation(response.getJsonString());
+        }
+    }
+
+    private static void logInformation(String message) {
+        LOGGER.log(Level.INFO, message);
+    }
+
 }

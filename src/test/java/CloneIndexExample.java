@@ -21,7 +21,7 @@ public class CloneIndexExample {
         IndexRef src = new IndexRef("localhost:9200", "username", "password", srcIndexName);
         IndexRef dstQa   = new IndexRef("localhost:9200", "username", "password", dstIndexName);
 
-        final String[] cloneArguments = CommandLineUtil.buildCloneArguments(src, dstQa, "0");
+        final String[] cloneArguments = CommandLineUtil.buildCloneArguments(src, dstQa, "replicas", "shards", false);
         IndexCloner.main(cloneArguments);
     }
 }

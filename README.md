@@ -4,9 +4,6 @@
 Simple Java code to clone/replicate/copy an elasticsearch index accross different clusters, using the Scan/Scroll on the source index and Bulk upload on the destination cluster.
 The command are executed trought the REST endpoint (generally port 9200). 
 
-The settings and mappings by type are trasfered to the destination index (unless specified the option -keepDstIndex amd the destination index already present on the destination cluster).
-In case it's required an http autentication on the source or destination clusters, you can pass these as parameters.
-
 Installation
 ------------
 To build the jar including all the dependencies run:
@@ -40,5 +37,5 @@ Example of usage:
 ```
 java -jar IndexCloner-0.0.1-SNAPSHOT-jar-with-dependencies.jar \
  -srcHost localhost:9200 -srcIndex movies -srcUser user1 -srcPwd password1 \
- -dstHost SEARCH-DEV -dstIndex movies_copy -dstIndexReplicas 2 -dstIndexShards 5 -dstUser user2 -dstPwd password2 
+ -dstHost SEARCH-DEV -dstIndex movies_copy -dstIndexReplicas 2 -dstIndexShards 5 -keepDstIndex false -dstUser user2 -dstPwd password2 
 ```

@@ -22,6 +22,7 @@ import io.searchbox.indices.mapping.PutMapping;
 import io.searchbox.indices.settings.GetSettings;
 import io.searchbox.params.Parameters;
 import org.apache.commons.cli.*;
+import org.apache.commons.lang3.time.DurationFormatUtils;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;
@@ -44,6 +45,7 @@ public class IndexCloner {
      * @throws RuntimeException
      */
     public static void main(String args[]) throws IOException, ParseException, InterruptedException, RuntimeException {
+        long time = System.currentTimeMillis();
         CommandLine cmd = getCommandLine(args);
         String srcIndex = cmd.getOptionValue("srcIndex");
         String dstIndex = cmd.getOptionValue("dstIndex");
@@ -51,6 +53,7 @@ public class IndexCloner {
         JestClient dst = getClient("dstHost", "dstUser", "dstPwd", cmd);
         createDestinationIndexFromSource(srcIndex, dstIndex, src, dst, cmd);
         cloneData(src, dst, srcIndex, dstIndex);
+        logDuration(time);
     }
 
     private static CommandLine getCommandLine(String[] args) throws ParseException {
@@ -235,14 +238,14 @@ public class IndexCloner {
             JestResult response = null;
             try {
                 Bulk build = bulk.build();
-                logInformation(new Timestamp(System.currentTimeMillis()).toString());
+//                logInformation(new Timestamp(System.currentTimeMillis()).toString());
                 response = dst.execute(build);
             } catch (SocketTimeoutException e) {
                 logInformation(" ------ socket exp");
                 logInformation(new Timestamp(System.currentTimeMillis()).toString());
                 e.printStackTrace();
             }
-            logResponse(response);
+//            logResponse(response);
         }
         logInformation("Copied successfully " + totHits + " documents");
         logInformation("cloning data phase finished");
@@ -252,6 +255,12 @@ public class IndexCloner {
         if (response != null) {
             logInformation(response.getJsonString());
         }
+    }
+
+    private static void logDuration(long time) {
+        long completedIn = System.currentTimeMillis() - time;
+        String duration = DurationFormatUtils.formatDuration(completedIn, "HH:mm:ss:SS");
+        logInformation("Duration : " + duration);
     }
 
     private static void logInformation(String message) {
